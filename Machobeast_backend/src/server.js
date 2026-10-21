@@ -5,6 +5,7 @@ import { ENV } from './config/env.js';
 import { connectDB } from './config/db.js';
 import authRoutes from './routes/auth.routes.js';
 import productRoutes from './routes/product.routes.js';
+import orderRoutes from './routes/order.routes.js';
 import { notFound, errorHandler } from './middlewares/error.middleware.js';
 
 const app = express();
@@ -34,6 +35,7 @@ app.get('/api/v1/health', (req, res) => {
 // Mount Routes
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/products', productRoutes);
+app.use('/api/v1/orders', orderRoutes);
 
 // Error Handling Middlewares
 app.use(notFound);

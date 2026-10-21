@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { clearCart } from '../redux/slices/cartSlice';
 import { placeOrder } from '../redux/slices/orderSlice';
+import API from '../services/api';
 
 export const CheckoutPage = () => {
   const dispatch = useDispatch();
@@ -57,40 +58,137 @@ export const CheckoutPage = () => {
     setAddress({ ...address, [e.target.name]: e.target.value });
   };
 
-  const handlePlaceOrder = (e) => {
+  const handlePlaceOrder = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
 
-    setTimeout(() => {
-      const orderData = {
-        totalAmount: finalPayable,
-        items: items.map(item => ({
-          id: item.id,
-          name: item.name,
-          variant: item.variant,
-          price: item.price,
-          quantity: item.quantity,
-          image: item.image,
-        })),
-        shippingAddress: {
-          fullName: address.fullName,
-          phone: address.phone,
-          address: `${address.flat}, ${address.area}${address.landmark ? ', ' + address.landmark : ''}`,
-          city: address.city,
-          state: address.state,
-          pincode: address.pincode,
+    const shippingPayload = {
+      fullName: address.fullName,
+      phone: address.phone,
+      address: `${address.flat}, ${address.area}${address.landmark ? ', ' + address.landmark : ''}`,
+      city: address.city,
+      state: address.state,
+      pincode: address.pincode,
+    };
+
+    const itemsPayload = items.map((item) => ({
+      _id: item.id && !item.id.toString().startsWith('custom-') ? item.id : undefined,
+      id: item.id,
+      name: item.name,
+      variant: item.variant,
+      price: item.price,
+      quantity: item.quantity,
+      image: item.image,
+    }));
+
+    // Flow 1: Cash on Delivery
+    if (paymentMethod === 'cod') {
+      try {
+        const response = await API.post('/orders/cod', {
+          items: itemsPayload,
+          shippingAddress: shippingPayload,
+          totalAmount: finalPayable,
+          guestEmail: user?.email || 'customer@machobeast.com'
+        });
+
+        const createdOrder = response.data || response;
+        dispatch(placeOrder(createdOrder));
+        dispatch(clearCart());
+        setIsSubmitting(false);
+        setOrderConfirmed({
+          orderId: createdOrder.orderId || `MB-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`,
+          paymentMethod: 'Cash on Delivery',
+          estimatedDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+        });
+      } catch (err) {
+        alert('Failed to place COD order: ' + (err.message || 'Server error'));
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
+    // Flow 2: Live Razorpay Gateway (UPI, Cards, Netbanking)
+    try {
+      // 1. Create order on backend
+      const orderRes = await API.post('/orders/razorpay-order', {
+        amount: finalPayable
+      });
+
+      const orderData = orderRes.data || orderRes;
+      const { order, keyId } = orderData;
+
+      if (!order || !keyId) {
+        throw new Error('Could not initialize Razorpay transaction');
+      }
+
+      // 2. Open Razorpay Checkout Modal
+      const options = {
+        key: keyId,
+        amount: order.amount,
+        currency: order.currency || 'INR',
+        name: 'MachoBeast Nutrition',
+        description: 'MachoBeast Supplement Order',
+        image: 'https://images.unsplash.com/photo-1579722821273-0f6c7d44362f?w=120',
+        order_id: order.id,
+        handler: async function (razorpayResponse) {
+          try {
+            // 3. Verify payment signature on backend
+            const verifyRes = await API.post('/orders/verify-payment', {
+              razorpayOrderId: razorpayResponse.razorpay_order_id,
+              razorpayPaymentId: razorpayResponse.razorpay_payment_id,
+              razorpaySignature: razorpayResponse.razorpay_signature,
+              items: itemsPayload,
+              shippingAddress: shippingPayload,
+              totalAmount: finalPayable,
+              guestEmail: user?.email || 'customer@machobeast.com'
+            });
+
+            const confirmedOrder = verifyRes.data || verifyRes;
+            dispatch(placeOrder(confirmedOrder));
+            dispatch(clearCart());
+            setIsSubmitting(false);
+            setOrderConfirmed({
+              orderId: confirmedOrder.orderId || `MB-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`,
+              paymentId: razorpayResponse.razorpay_payment_id,
+              paymentMethod: 'Razorpay Online (UPI/Card)',
+              estimatedDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+            });
+          } catch (verifyErr) {
+            alert('Payment verification failed: ' + verifyErr.message);
+            setIsSubmitting(false);
+          }
         },
-        paymentMethod: paymentMethod === 'upi' ? 'UPI' : paymentMethod === 'cod' ? 'Cash on Delivery' : paymentMethod === 'card' ? 'Credit/Debit Card' : 'Net Banking',
+        prefill: {
+          name: address.fullName || user?.name || 'MachoBeast Athlete',
+          email: user?.email || 'customer@machobeast.com',
+          contact: address.phone || '9876543210'
+        },
+        theme: {
+          color: '#f59e0b' // MachoBeast amber brand color
+        },
+        modal: {
+          ondismiss: function () {
+            setIsSubmitting(false);
+          }
+        }
       };
 
-      dispatch(placeOrder(orderData));
-      dispatch(clearCart());
-      setIsSubmitting(false);
-      setOrderConfirmed({
-        orderId: `MB-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`,
-        estimatedDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+      if (!window.Razorpay) {
+        alert('Razorpay SDK failed to load. Please check your internet connection and retry.');
+        setIsSubmitting(false);
+        return;
+      }
+
+      const rzp = new window.Razorpay(options);
+      rzp.on('payment.failed', function (response) {
+        alert('Payment failed: ' + (response.error?.description || 'Transaction declined'));
+        setIsSubmitting(false);
       });
-    }, 1500);
+      rzp.open();
+    } catch (err) {
+      alert('Error initiating Razorpay checkout: ' + err.message);
+      setIsSubmitting(false);
+    }
   };
 
   // If cart is empty and no confirmation yet
@@ -132,6 +230,16 @@ export const CheckoutPage = () => {
               <span className="text-gray-600 font-medium">Order Number:</span>
               <span className="font-mono font-bold text-slate-900">{orderConfirmed.orderId}</span>
             </div>
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-gray-600 font-medium">Payment Mode:</span>
+              <span className="font-bold text-slate-900">{orderConfirmed.paymentMethod || 'Online'}</span>
+            </div>
+            {orderConfirmed.paymentId && (
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-600 font-medium">Razorpay Txn ID:</span>
+                <span className="font-mono text-xs font-semibold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded">{orderConfirmed.paymentId}</span>
+              </div>
+            )}
             <div className="flex justify-between items-center text-sm">
               <span className="text-gray-600 font-medium">Estimated Delivery:</span>
               <span className="font-bold text-emerald-700">{orderConfirmed.estimatedDate}</span>
