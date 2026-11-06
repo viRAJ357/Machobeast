@@ -1,6 +1,7 @@
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
 import { Order } from '../models/order.model.js';
+import { Cart } from '../models/cart.model.js';
 import { ENV } from '../config/env.js';
 
 // Lazy-initialized Razorpay instance
@@ -120,6 +121,11 @@ export const verifyRazorpayPayment = async (req, res, next) => {
       orderStatus: 'Confirmed'
     });
 
+    // If user is authenticated, clear their persistent cart in MongoDB
+    if (req.user?._id) {
+      await Cart.findOneAndUpdate({ user: req.user._id }, { items: [] });
+    }
+
     res.status(201).json({
       success: true,
       message: 'Payment verified and Order placed successfully!',
@@ -161,10 +167,37 @@ export const createCodOrder = async (req, res, next) => {
       orderStatus: 'Confirmed'
     });
 
+    // If user is authenticated, clear their persistent cart in MongoDB
+    if (req.user?._id) {
+      await Cart.findOneAndUpdate({ user: req.user._id }, { items: [] });
+    }
+
     res.status(201).json({
       success: true,
       message: 'COD Order placed successfully!',
       data: order
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get logged in user's personal orders
+// @route   GET /api/v1/orders/my-orders
+// @access  Protected
+export const getMyOrders = async (req, res, next) => {
+  try {
+    const orders = await Order.find({
+      $or: [
+        { user: req.user._id },
+        ...(req.user.email ? [{ guestEmail: req.user.email.toLowerCase() }] : [])
+      ]
+    }).sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: orders.length,
+      data: orders
     });
   } catch (error) {
     next(error);

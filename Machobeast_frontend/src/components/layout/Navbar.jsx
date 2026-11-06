@@ -184,7 +184,8 @@ export const Navbar = () => {
               <ChevronDown className="w-3 h-3 text-gray-400" />
             </div>
 
-            {/* MachoBeast Seller Central Access */}
+            {/* MachoBeast Seller Central — Admin only */}
+            {isAuthenticated && user?.role === 'admin' && (
             <Link
               to="/admin/dashboard"
               className="flex items-center gap-1.5 py-1.5 px-2 rounded-sm border border-amber-400/40 bg-amber-400/10 hover:border-amber-400 text-[#febd69] transition-all"
@@ -196,6 +197,7 @@ export const Navbar = () => {
                 <span className="text-xs font-bold text-[#febd69]">Admin</span>
               </div>
             </Link>
+            )}
 
             {/* Account & Lists Dropdown */}
             <div className="relative">
@@ -263,6 +265,7 @@ export const Navbar = () => {
                     >
                       Your Account & Addresses
                     </Link>
+                    {user?.role === 'admin' && (
                     <Link
                       to="/admin/dashboard"
                       onClick={() => setIsAccountOpen(false)}
@@ -270,6 +273,7 @@ export const Navbar = () => {
                     >
                       ★ MachoBeast Seller Central
                     </Link>
+                    )}
                     {isAuthenticated && (
                       <button
                         onClick={handleLogout}

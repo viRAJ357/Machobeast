@@ -2,6 +2,39 @@ import { User } from '../models/user.model.js';
 import { generateToken } from '../utils/generateToken.js';
 import { ApiError } from '../utils/apiError.js';
 import { ApiResponse } from '../utils/apiResponse.js';
+import { ENV } from '../config/env.js';
+
+// Helper to set auth cookie + respond
+const sendTokenResponse = (user, statusCode, res, message) => {
+  const token = generateToken(user._id, user.role);
+
+  res.cookie('token', token, {
+    httpOnly: true,
+    secure: ENV.NODE_ENV === 'production',
+    sameSite: ENV.NODE_ENV === 'production' ? 'none' : 'lax',
+    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+  });
+
+  return res.status(statusCode).json(
+    new ApiResponse(
+      statusCode,
+      {
+        user: {
+          _id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          phone: user.phone,
+          avatar: user.avatar,
+          provider: user.provider,
+          isVerified: user.isVerified
+        },
+        token
+      },
+      message
+    )
+  );
+};
 
 // @desc    Register a new user
 // @route   POST /api/v1/auth/register
@@ -27,34 +60,12 @@ export const registerUser = async (req, res, next) => {
       email: email.toLowerCase(),
       password,
       phone: phone || '',
-      role: userRole
+      role: userRole,
+      provider: 'local',
+      avatar: `https://ui-avatars.com/api/?background=f59e0b&color=000&bold=true&name=${encodeURIComponent(name)}`
     });
 
-    const token = generateToken(user._id, user.role);
-
-    res.cookie('token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-    });
-
-    return res.status(201).json(
-      new ApiResponse(
-        201,
-        {
-          user: {
-            _id: user._id,
-            name: user.name,
-            email: user.email,
-            role: user.role,
-            phone: user.phone,
-            avatar: user.avatar
-          },
-          token
-        },
-        'User registered successfully'
-      )
-    );
+    return sendTokenResponse(user, 201, res, 'User registered successfully');
   } catch (error) {
     next(error);
   }
@@ -73,35 +84,22 @@ export const loginUser = async (req, res, next) => {
 
     const user = await User.findOne({ email: email.toLowerCase() }).select('+password');
 
-    if (!user || !(await user.matchPassword(password))) {
+    if (!user) {
       return next(new ApiError(401, 'Invalid email or password'));
     }
 
-    const token = generateToken(user._id, user.role);
+    // OAuth users trying to log in with password
+    if (user.provider !== 'local' && !user.password) {
+      return next(
+        new ApiError(400, `This account uses ${user.provider} sign-in. Please use that method.`)
+      );
+    }
 
-    res.cookie('token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-    });
+    if (!(await user.matchPassword(password))) {
+      return next(new ApiError(401, 'Invalid email or password'));
+    }
 
-    return res.status(200).json(
-      new ApiResponse(
-        200,
-        {
-          user: {
-            _id: user._id,
-            name: user.name,
-            email: user.email,
-            role: user.role,
-            phone: user.phone,
-            avatar: user.avatar
-          },
-          token
-        },
-        'Logged in successfully'
-      )
-    );
+    return sendTokenResponse(user, 200, res, 'Logged in successfully');
   } catch (error) {
     next(error);
   }
@@ -132,5 +130,37 @@ export const getMeProfile = async (req, res, next) => {
     return res.status(200).json(new ApiResponse(200, user, 'User profile fetched'));
   } catch (error) {
     next(error);
+  }
+};
+
+// @desc    Handle OAuth callback — issue JWT and redirect to frontend
+// @route   GET /api/v1/auth/google/callback  (called by Passport internally)
+// @access  Internal
+export const oAuthCallback = async (req, res) => {
+  try {
+    const user = req.user;
+    if (!user) {
+      return res.redirect(`${ENV.CLIENT_URL}/login?error=oauth_failed`);
+    }
+
+    const token = generateToken(user._id, user.role);
+
+    // Redirect to frontend with token + user info in query params
+    const userData = encodeURIComponent(
+      JSON.stringify({
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        phone: user.phone,
+        avatar: user.avatar,
+        provider: user.provider,
+        isVerified: user.isVerified
+      })
+    );
+
+    res.redirect(`${ENV.CLIENT_URL}/oauth-callback?token=${token}&user=${userData}`);
+  } catch (error) {
+    res.redirect(`${ENV.CLIENT_URL}/login?error=oauth_failed`);
   }
 };

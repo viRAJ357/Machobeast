@@ -6,16 +6,17 @@ import {
   updateProduct,
   deleteProduct
 } from '../controllers/product.controller.js';
+import { protect, admin } from '../middlewares/auth.middleware.js';
 
 const router = express.Router();
 
-router.route('/')
-  .get(getProducts)
-  .post(createProduct);
+// Public routes
+router.get('/', getProducts);
+router.get('/:id', getProductById);
 
-router.route('/:id')
-  .get(getProductById)
-  .put(updateProduct)
-  .delete(deleteProduct);
+// Admin-only routes
+router.post('/', protect, admin, createProduct);
+router.put('/:id', protect, admin, updateProduct);
+router.delete('/:id', protect, admin, deleteProduct);
 
 export default router;

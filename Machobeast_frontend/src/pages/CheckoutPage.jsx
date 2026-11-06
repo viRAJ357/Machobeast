@@ -30,21 +30,21 @@ export const CheckoutPage = () => {
 
   // Address Form State
   const [address, setAddress] = useState({
-    fullName: user?.name || 'Nikhil Kumar',
-    phone: user?.phone || '9876543210',
-    pincode: '201301',
-    flat: 'Flat 402, Royal Residency',
-    area: 'Sector 18',
-    city: 'Noida',
-    state: 'Uttar Pradesh',
-    landmark: 'Near Metro Station',
+    fullName: user?.name || '',
+    phone: user?.phone || '',
+    pincode: '',
+    flat: '',
+    area: '',
+    city: '',
+    state: '',
+    landmark: '',
     type: 'Home'
   });
 
   const [deliverySpeed, setDeliverySpeed] = useState('express'); // 'express' (free) or 'priority' (₹49)
   const [paymentMethod, setPaymentMethod] = useState('upi'); // 'upi', 'cod', 'card', 'netbanking'
-  const [upiId, setUpiId] = useState('nikhil@okhdfcbank');
-  const [cardDetails, setCardDetails] = useState({ number: '4532 •••• •••• 8821', name: 'Nikhil Kumar', expiry: '08/28', cvv: '•••' });
+  const [upiId, setUpiId] = useState('');
+  const [cardDetails, setCardDetails] = useState({ number: '', name: user?.name || '', expiry: '', cvv: '' });
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderConfirmed, setOrderConfirmed] = useState(null);

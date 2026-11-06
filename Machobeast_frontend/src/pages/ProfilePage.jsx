@@ -21,9 +21,9 @@ export const ProfilePage = () => {
   const { user, isAuthenticated } = useSelector((state) => state.auth);
   const { orders } = useSelector((state) => state.order);
 
-  const displayName = user?.name || 'Nikhil Kumar';
-  const displayEmail = user?.email || 'nikhil@machobeast.com';
-  const displayPhone = user?.phone || '+91 98765 43210';
+  const displayName = user?.name || (isAuthenticated ? 'MachoBeast Athlete' : 'Guest User');
+  const displayEmail = user?.email || (isAuthenticated ? 'No email registered' : 'guest@machobeast.com');
+  const displayPhone = user?.phone || 'Not added';
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] pb-24">

@@ -1,17 +1,22 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import API from '../../services/api';
+import { fetchUserCart, clearCart } from './cartSlice';
+import { clearOrders } from './orderSlice';
 
 const storedUser = JSON.parse(localStorage.getItem('machobeast_user') || 'null');
 const storedToken = localStorage.getItem('machobeast_token') || null;
 
+// ─── Thunks ───────────────────────────────────────────────────────────────────
+
 export const loginUserThunk = createAsyncThunk(
   'auth/login',
-  async (credentials, { rejectWithValue }) => {
+  async (credentials, { dispatch, rejectWithValue }) => {
     try {
       const response = await API.post('/auth/login', credentials);
       if (response.success) {
         localStorage.setItem('machobeast_token', response.data.token);
         localStorage.setItem('machobeast_user', JSON.stringify(response.data.user));
+        dispatch(fetchUserCart());
       }
       return response.data;
     } catch (error) {
@@ -22,12 +27,13 @@ export const loginUserThunk = createAsyncThunk(
 
 export const registerUserThunk = createAsyncThunk(
   'auth/register',
-  async (userData, { rejectWithValue }) => {
+  async (userData, { dispatch, rejectWithValue }) => {
     try {
       const response = await API.post('/auth/register', userData);
       if (response.success) {
         localStorage.setItem('machobeast_token', response.data.token);
         localStorage.setItem('machobeast_user', JSON.stringify(response.data.user));
+        dispatch(fetchUserCart());
       }
       return response.data;
     } catch (error) {
@@ -46,10 +52,22 @@ export const logoutUserThunk = createAsyncThunk(
     } finally {
       localStorage.removeItem('machobeast_token');
       localStorage.removeItem('machobeast_user');
+      dispatch(clearCart());
+      dispatch(clearOrders());
       dispatch(clearAuth());
     }
   }
 );
+
+// Used by OAuthCallbackPage after redirect from backend
+export const setOAuthUser = (user, token) => (dispatch) => {
+  localStorage.setItem('machobeast_token', token);
+  localStorage.setItem('machobeast_user', JSON.stringify(user));
+  dispatch(authSlice.actions.setUser({ user, token }));
+  dispatch(fetchUserCart());
+};
+
+// ─── Slice ────────────────────────────────────────────────────────────────────
 
 const initialState = {
   user: storedUser,
@@ -71,6 +89,13 @@ const authSlice = createSlice({
       state.error = null;
     },
     clearAuthError: (state) => {
+      state.error = null;
+    },
+    setUser: (state, action) => {
+      state.user = action.payload.user;
+      state.token = action.payload.token;
+      state.isAuthenticated = true;
+      state.loading = false;
       state.error = null;
     }
   },
@@ -109,5 +134,5 @@ const authSlice = createSlice({
   }
 });
 
-export const { clearAuth, clearAuthError } = authSlice.actions;
+export const { clearAuth, clearAuthError, setUser } = authSlice.actions;
 export default authSlice.reducer;

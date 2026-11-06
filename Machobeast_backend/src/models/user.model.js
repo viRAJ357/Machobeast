@@ -22,7 +22,7 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: [true, 'Password is required'],
+      // Not required for OAuth users
       minlength: [6, 'Password must be at least 6 characters'],
       select: false
     },
@@ -37,7 +37,21 @@ const userSchema = new mongoose.Schema(
     },
     avatar: {
       type: String,
-      default: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'
+      default: 'https://ui-avatars.com/api/?background=f59e0b&color=000&bold=true&name=User'
+    },
+    // OAuth provider fields
+    provider: {
+      type: String,
+      enum: ['local', 'google', 'facebook'],
+      default: 'local'
+    },
+    googleId: {
+      type: String,
+      default: null
+    },
+    facebookId: {
+      type: String,
+      default: null
     },
     addresses: [
       {
@@ -59,9 +73,9 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-// Hash password before saving
+// Hash password before saving (only for local users)
 userSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) {
+  if (!this.isModified('password') || !this.password) {
     return next();
   }
   const salt = await bcrypt.genSalt(10);
@@ -71,6 +85,7 @@ userSchema.pre('save', async function (next) {
 
 // Compare password method
 userSchema.methods.matchPassword = async function (enteredPassword) {
+  if (!this.password) return false;
   return await bcrypt.compare(enteredPassword, this.password);
 };
 

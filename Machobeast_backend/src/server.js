@@ -3,9 +3,11 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import { ENV } from './config/env.js';
 import { connectDB } from './config/db.js';
+import passport from './config/passport.js';
 import authRoutes from './routes/auth.routes.js';
 import productRoutes from './routes/product.routes.js';
 import orderRoutes from './routes/order.routes.js';
+import cartRoutes from './routes/cart.routes.js';
 import { notFound, errorHandler } from './middlewares/error.middleware.js';
 
 const app = express();
@@ -14,6 +16,8 @@ const app = express();
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
+app.use(passport.initialize());
+
 
 app.use(
   cors({
@@ -49,6 +53,7 @@ app.get('/api/v1/health', (req, res) => {
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/products', productRoutes);
 app.use('/api/v1/orders', orderRoutes);
+app.use('/api/v1/cart', cartRoutes);
 
 // Error Handling Middlewares
 app.use(notFound);

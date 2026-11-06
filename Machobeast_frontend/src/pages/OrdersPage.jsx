@@ -14,14 +14,21 @@ import {
   ExternalLink,
   ShieldCheck
 } from 'lucide-react';
-import { cancelOrder } from '../redux/slices/orderSlice';
+import { cancelOrder, fetchMyOrdersThunk } from '../redux/slices/orderSlice';
 import { addToCart } from '../redux/slices/cartSlice';
 
 export const OrdersPage = () => {
   const dispatch = useDispatch();
   const { orders } = useSelector((state) => state.order);
+  const { isAuthenticated } = useSelector((state) => state.auth || {});
   const [activeTab, setActiveTab] = useState('all'); // 'all', 'transit', 'delivered'
   const [reorderedId, setReorderedId] = useState(null);
+
+  React.useEffect(() => {
+    if (isAuthenticated) {
+      dispatch(fetchMyOrdersThunk());
+    }
+  }, [dispatch, isAuthenticated]);
 
   const filteredOrders = orders.filter((order) => {
     if (activeTab === 'transit') return order.status === 'Shipped' || order.status === 'Confirmed';
