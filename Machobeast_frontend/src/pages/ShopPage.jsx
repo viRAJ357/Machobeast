@@ -316,11 +316,11 @@ export const ShopPage = () => {
     (isVegOnly ? 1 : 0) +
     (isBestsellerOnly ? 1 : 0);
 
-  // Dynamic grid classes
+  // Dynamic grid classes (responsive 2-column on mobile, up to 5 on wide screens)
   const gridClasses = {
-    3: 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6',
-    4: 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5',
-    5: 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3.5'
+    3: 'grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-5',
+    4: 'grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4',
+    5: 'grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2.5 sm:gap-3.5'
   }[gridCols];
 
   // Helper labels
@@ -741,7 +741,7 @@ export const ShopPage = () => {
       </div>
 
       {/* Main Shop Container */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+      <div className="max-w-7xl mx-auto px-2.5 sm:px-6 lg:px-8 pt-4 sm:pt-6">
         <div className="flex gap-8">
           
           {/* ========================================================= */}

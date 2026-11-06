@@ -19,6 +19,7 @@ import { logoutUserThunk } from '../../redux/slices/authSlice';
 import { setSearchQuery } from '../../redux/slices/uiSlice';
 import { addToCart } from '../../redux/slices/cartSlice';
 import { clearDraggingProduct } from '../../redux/slices/productSlice';
+import { useCartSync } from '../../hooks/useCartSync';
 
 export const Navbar = () => {
   const navigate = useNavigate();
@@ -27,6 +28,7 @@ export const Navbar = () => {
   const { totalQuantity } = useSelector((state) => state.cart);
   const { searchQuery } = useSelector((state) => state.ui);
   const { categories, isDraggingProduct } = useSelector((state) => state.products);
+  const { addItem } = useCartSync();
 
   const [isAccountOpen, setIsAccountOpen] = useState(false);
   const [isNavbarDropOver, setIsNavbarDropOver] = useState(false);
@@ -79,17 +81,15 @@ export const Navbar = () => {
         mrp: product.mrp || 1499
       };
 
-      dispatch(
-        addToCart({
-          id: product.id || product._id,
-          name: product.name,
-          variant: `${selectedVariant.weight}, ${selectedVariant.flavor}`,
-          price: selectedVariant.price,
-          mrp: selectedVariant.mrp,
-          image: product.image,
-          isVeg: product.isVeg !== false
-        })
-      );
+      addItem({
+        id: product.id || product._id,
+        name: product.name,
+        variant: `${selectedVariant.weight}, ${selectedVariant.flavor}`,
+        price: selectedVariant.price,
+        mrp: selectedVariant.mrp,
+        image: product.image,
+        isVeg: product.isVeg !== false
+      });
       window.__MACHOBEAST_DRAGGED_ITEM__ = null;
     }
   };
@@ -106,25 +106,25 @@ export const Navbar = () => {
     <>
       {/* Primary Header (#131921) */}
       <header className="bg-[#131921] text-white sticky top-0 z-50 text-xs select-none">
-        <div className="max-w-[1500px] mx-auto px-3 sm:px-4 flex items-center h-15 py-1 gap-2 sm:gap-4 justify-between">
+        <div className="max-w-[1500px] mx-auto px-2.5 sm:px-4 flex items-center h-14 sm:h-15 py-1 gap-2 sm:gap-4 justify-between">
           
           {/* Brand Logo */}
           <Link
             to="/"
-            className="flex items-center gap-1 py-1.5 px-2 rounded-sm border border-transparent hover:border-white transition-all shrink-0 group"
+            className="flex items-center gap-1 py-1 px-1.5 sm:px-2 rounded-sm border border-transparent hover:border-white transition-all shrink-0 group"
           >
             <div className="flex flex-col">
               <div className="flex items-baseline">
-                <span className="font-display font-black text-xl tracking-tight text-white leading-none">
+                <span className="font-display font-black text-lg sm:text-xl tracking-tight text-white leading-none">
                   macho<span className="text-[#febd69]">beast</span>
                 </span>
-                <span className="text-[10px] text-[#febd69] font-bold ml-0.5">.in</span>
+                <span className="text-[9px] sm:text-[10px] text-[#febd69] font-bold ml-0.5">.in</span>
               </div>
-              <div className="w-12 h-1 bg-[#febd69] rounded-full mt-0.5 -rotate-2 transform group-hover:scale-105 transition-transform"></div>
+              <div className="w-10 sm:w-12 h-0.5 sm:h-1 bg-[#febd69] rounded-full mt-0.5 -rotate-2 transform group-hover:scale-105 transition-transform"></div>
             </div>
           </Link>
 
-          {/* Location / Deliver to Pincode */}
+          {/* Location / Deliver to Pincode (Desktop) */}
           <button
             onClick={() => setIsPincodeModalOpen(true)}
             className="hidden md:flex items-center gap-1.5 py-1 px-2 rounded-sm border border-transparent hover:border-white text-left transition-all shrink-0 cursor-pointer"
@@ -139,8 +139,8 @@ export const Navbar = () => {
             </div>
           </button>
 
-          {/* 3-Part Search Bar */}
-          <div className="flex-1 max-w-3xl mx-1 sm:mx-2">
+          {/* 3-Part Search Bar (Desktop: md & up) */}
+          <div className="hidden md:block flex-1 max-w-3xl mx-1 sm:mx-2">
             <form onSubmit={handleSearchSubmit} className="flex h-10 rounded-md overflow-hidden focus-within:ring-2 focus-within:ring-[#f3a847]">
               {/* Category Dropdown on Left */}
               <select
@@ -177,7 +177,19 @@ export const Navbar = () => {
 
           {/* Right Header Navigation Items */}
           <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-            {/* Language / India Flag Indicator */}
+            {/* Mobile Pincode Trigger Button */}
+            <button
+              onClick={() => setIsPincodeModalOpen(true)}
+              className="flex md:hidden items-center gap-1 py-1 px-1.5 text-gray-300 hover:text-white rounded border border-transparent hover:border-gray-600 cursor-pointer"
+              title="Deliver to"
+            >
+              <MapPin className="w-3.5 h-3.5 text-[#febd69]" />
+              <span className="text-[10px] font-medium truncate max-w-[65px]">
+                {deliveryPincode.replace('Deliver to ', '').replace('Mumbai ', '')}
+              </span>
+            </button>
+
+            {/* Language / India Flag Indicator (Large screens only) */}
             <div className="hidden lg:flex items-center gap-1 py-1.5 px-2 rounded-sm border border-transparent hover:border-white cursor-pointer">
               <span className="text-sm">🇮🇳</span>
               <span className="text-xs font-bold uppercase text-white">EN</span>
@@ -188,13 +200,13 @@ export const Navbar = () => {
             {isAuthenticated && user?.role === 'admin' && (
             <Link
               to="/admin/dashboard"
-              className="flex items-center gap-1.5 py-1.5 px-2 rounded-sm border border-amber-400/40 bg-amber-400/10 hover:border-amber-400 text-[#febd69] transition-all"
+              className="flex items-center gap-1 sm:gap-1.5 py-1 sm:py-1.5 px-1.5 sm:px-2 rounded-sm border border-amber-400/40 bg-amber-400/10 hover:border-amber-400 text-[#febd69] transition-all"
               title="Add future items & manage inventory"
             >
-              <Sparkles className="w-3.5 h-3.5 fill-[#febd69]" />
+              <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5 fill-[#febd69]" />
               <div className="flex flex-col leading-none">
-                <span className="text-[10px] text-gray-300">Seller Central</span>
-                <span className="text-xs font-bold text-[#febd69]">Admin</span>
+                <span className="hidden sm:inline text-[10px] text-gray-300">Seller Central</span>
+                <span className="text-[10px] sm:text-xs font-bold text-[#febd69]">Admin</span>
               </div>
             </Link>
             )}
@@ -203,14 +215,17 @@ export const Navbar = () => {
             <div className="relative">
               <button
                 onClick={() => setIsAccountOpen(!isAccountOpen)}
-                className="flex flex-col text-left py-1 px-2 rounded-sm border border-transparent hover:border-white transition-all cursor-pointer"
+                className="flex flex-col text-left py-1 px-1.5 sm:px-2 rounded-sm border border-transparent hover:border-white transition-all cursor-pointer"
               >
-                <span className="text-[11px] text-[#cccccc] font-normal leading-tight">
-                  Hello, {isAuthenticated ? user?.name.split(' ')[0] : 'sign in'}
+                <span className="text-[10px] sm:text-[11px] text-[#cccccc] font-normal leading-tight truncate max-w-[75px] sm:max-w-none">
+                  Hello, {isAuthenticated ? user?.name.split(' ')[0] : 'Sign in'}
                 </span>
                 <div className="flex items-center gap-0.5">
-                  <span className="text-xs font-bold text-white leading-tight">
+                  <span className="text-[11px] sm:text-xs font-bold text-white leading-tight hidden sm:inline">
                     Account & Lists
+                  </span>
+                  <span className="text-[11px] font-bold text-white leading-tight sm:hidden">
+                    Account
                   </span>
                   <ChevronDown className="w-3 h-3 text-gray-400" />
                 </div>
@@ -287,10 +302,10 @@ export const Navbar = () => {
               )}
             </div>
 
-            {/* Returns & Orders */}
+            {/* Returns & Orders (Tablet & Desktop) */}
             <Link
               to="/orders"
-              className="hidden sm:flex flex-col text-left py-1 px-2 rounded-sm border border-transparent hover:border-white transition-all shrink-0"
+              className="hidden md:flex flex-col text-left py-1 px-2 rounded-sm border border-transparent hover:border-white transition-all shrink-0"
             >
               <span className="text-[11px] text-[#cccccc] font-normal leading-tight">Returns</span>
               <span className="text-xs font-bold text-white leading-tight">& Orders</span>
@@ -309,7 +324,7 @@ export const Navbar = () => {
                 setIsNavbarDropOver(false);
               }}
               onDrop={handleNavCartDrop}
-              className={`relative py-1 px-2 rounded-sm transition-all cursor-pointer ${
+              className={`relative py-1 px-1.5 sm:px-2 rounded-sm transition-all cursor-pointer ${
                 isNavbarDropOver
                   ? 'bg-[#febd69] text-black ring-4 ring-amber-400 scale-110 shadow-lg'
                   : isDraggingProduct
@@ -319,8 +334,8 @@ export const Navbar = () => {
             >
               <Link to="/cart" className="flex items-center gap-1">
                 <div className="relative">
-                  <ShoppingCart className={`w-7 h-7 ${isNavbarDropOver ? 'text-black' : 'text-white'}`} />
-                  <span className="absolute -top-1 left-3 bg-[#f08804] text-white font-black text-[12px] px-1.5 rounded-full shadow leading-none py-0.5">
+                  <ShoppingCart className={`w-6 h-6 sm:w-7 sm:h-7 ${isNavbarDropOver ? 'text-black' : 'text-white'}`} />
+                  <span className="absolute -top-1.5 left-2.5 sm:left-3 bg-[#f08804] text-white font-black text-[11px] sm:text-[12px] px-1.5 rounded-full shadow leading-none py-0.5">
                     {totalQuantity}
                   </span>
                 </div>
@@ -332,6 +347,25 @@ export const Navbar = () => {
 
           </div>
 
+        </div>
+
+        {/* Dedicated Full-Width Search Bar on Mobile (< 768px) */}
+        <div className="md:hidden px-3 pb-2.5 pt-0.5">
+          <form onSubmit={handleSearchSubmit} className="flex h-9 rounded-md overflow-hidden shadow-xs focus-within:ring-2 focus-within:ring-[#f3a847]">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => dispatch(setSearchQuery(e.target.value))}
+              placeholder="Search supplements, proteins, creatine..."
+              className="w-full px-3 text-xs text-slate-900 bg-white placeholder:text-gray-400 focus:outline-none font-normal"
+            />
+            <button
+              type="submit"
+              className="bg-[#febd69] hover:bg-[#f3a847] text-slate-900 px-4 flex items-center justify-center transition-colors shrink-0 cursor-pointer"
+            >
+              <Search className="w-4 h-4 stroke-[2.5]" />
+            </button>
+          </form>
         </div>
       </header>
 

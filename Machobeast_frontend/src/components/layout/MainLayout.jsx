@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { Navbar } from './Navbar';
 import { CategoryNav } from './CategoryNav';
 import { Footer } from './Footer';
+import { MobileBottomNav } from './MobileBottomNav';
 import { FloatingCartDropZone } from '../cart/FloatingCartDropZone';
 import { fetchProductsThunk } from '../../redux/slices/productSlice';
 import { fetchUserCart } from '../../redux/slices/cartSlice';
@@ -20,7 +21,7 @@ export const MainLayout = () => {
   }, [dispatch, isAuthenticated]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#eaeded]">
+    <div className="min-h-screen flex flex-col bg-[#eaeded] pb-14 md:pb-0">
       <Navbar />
       <CategoryNav />
       <main className="flex-1">
@@ -28,6 +29,9 @@ export const MainLayout = () => {
       </main>
       <FloatingCartDropZone />
       <Footer />
+      <MobileBottomNav />
     </div>
   );
 };
+
+export default MainLayout;

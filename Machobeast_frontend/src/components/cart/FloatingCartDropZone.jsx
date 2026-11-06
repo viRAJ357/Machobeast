@@ -16,12 +16,14 @@ import {
 } from 'lucide-react';
 import { addToCart, removeFromCart, updateQuantity } from '../../redux/slices/cartSlice';
 import { clearDraggingProduct } from '../../redux/slices/productSlice';
+import { useCartSync } from '../../hooks/useCartSync';
 
 export const FloatingCartDropZone = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { items, totalQuantity, totalAmount } = useSelector((state) => state.cart);
   const { isDraggingProduct } = useSelector((state) => state.products);
+  const { addItem, removeItem, changeQty } = useCartSync();
 
   const [isOpen, setIsOpen] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -94,17 +96,15 @@ export const FloatingCartDropZone = () => {
         mrp: product.mrp || 1499
       };
 
-      dispatch(
-        addToCart({
-          id: product.id || product._id,
-          name: product.name,
-          variant: `${selectedVariant.weight}, ${selectedVariant.flavor}`,
-          price: selectedVariant.price,
-          mrp: selectedVariant.mrp,
-          image: product.image,
-          isVeg: product.isVeg !== false
-        })
-      );
+      addItem({
+        id: product.id || product._id,
+        name: product.name,
+        variant: `${selectedVariant.weight}, ${selectedVariant.flavor}`,
+        price: selectedVariant.price,
+        mrp: selectedVariant.mrp,
+        image: product.image,
+        isVeg: product.isVeg !== false
+      });
 
       playDropSound();
       setJustAddedProduct(product.name);
@@ -144,19 +144,19 @@ export const FloatingCartDropZone = () => {
         </div>
       )}
 
-      {/* Floating Widget Bottom-Right */}
-      <div className="fixed bottom-5 right-5 z-40 flex flex-col items-end">
+      {/* Floating Widget Bottom-Right — positioned above bottom nav on mobile */}
+      <div className="fixed bottom-18 md:bottom-5 right-3 md:right-5 z-40 flex flex-col items-end">
         {/* Toast Alert when item dropped */}
         {justAddedProduct && (
-          <div className="mb-3 bg-emerald-950 text-white px-4 py-3 rounded-xl shadow-2xl border border-emerald-500/40 flex items-center gap-3 animate-bounce">
-            <div className="w-7 h-7 bg-emerald-500 rounded-full flex items-center justify-center text-black font-bold">
-              <Check className="w-4 h-4 stroke-[3]" />
+          <div className="mb-3 bg-emerald-950 text-white px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl shadow-2xl border border-emerald-500/40 flex items-center gap-3 animate-bounce max-w-[90vw]">
+            <div className="w-6 h-6 sm:w-7 sm:h-7 bg-emerald-500 rounded-full flex items-center justify-center text-black font-bold shrink-0">
+              <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[3]" />
             </div>
             <div>
-              <p className="text-xs font-bold text-emerald-300 uppercase tracking-wider">
-                Added to MachoBeast Cart via Drag & Drop!
+              <p className="text-[11px] sm:text-xs font-bold text-emerald-300 uppercase tracking-wider">
+                Added to MachoBeast Cart!
               </p>
-              <p className="text-xs text-white line-clamp-1 max-w-[240px] font-medium">
+              <p className="text-xs text-white line-clamp-1 max-w-[200px] sm:max-w-[240px] font-medium">
                 {justAddedProduct}
               </p>
             </div>
@@ -165,7 +165,7 @@ export const FloatingCartDropZone = () => {
 
         {/* Expanded Quick Cart Drawer */}
         {isOpen && (
-          <div className="mb-3 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-amber-300 overflow-hidden transition-all duration-300 animate-in fade-in slide-in-from-bottom-4">
+          <div className="mb-3 w-[calc(100vw-24px)] max-w-sm sm:w-96 bg-white rounded-2xl shadow-2xl border border-amber-300 overflow-hidden transition-all duration-300 animate-in fade-in slide-in-from-bottom-4">
             {/* Header */}
             <div className="bg-gradient-to-r from-slate-950 via-slate-900 to-amber-950 text-white p-4 flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -221,9 +221,9 @@ export const FloatingCartDropZone = () => {
                       <button
                         onClick={() => {
                           if (item.quantity > 1) {
-                            dispatch(updateQuantity({ id: item.id, variant: item.variant, quantity: item.quantity - 1 }));
+                            changeQty({ id: item.id, variant: item.variant, quantity: item.quantity - 1 });
                           } else {
-                            dispatch(removeFromCart({ id: item.id, variant: item.variant }));
+                            removeItem({ id: item.id, variant: item.variant });
                           }
                         }}
                         className="w-5 h-5 flex items-center justify-center bg-white rounded shadow-sm text-gray-700 hover:text-red-600 cursor-pointer"
@@ -233,7 +233,7 @@ export const FloatingCartDropZone = () => {
                       <span className="text-xs font-bold w-4 text-center">{item.quantity}</span>
                       <button
                         onClick={() =>
-                          dispatch(updateQuantity({ id: item.id, variant: item.variant, quantity: item.quantity + 1 }))
+                          changeQty({ id: item.id, variant: item.variant, quantity: item.quantity + 1 })
                         }
                         className="w-5 h-5 flex items-center justify-center bg-white rounded shadow-sm text-gray-700 hover:text-black cursor-pointer"
                       >

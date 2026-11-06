@@ -470,7 +470,7 @@ export const AdminDashboardPage = () => {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+            <table className="w-full text-left text-xs min-w-[680px]">
               <thead className="bg-gray-50 text-gray-500 uppercase font-bold text-[10px] tracking-wider border-b border-gray-200">
                 <tr>
                   <th className="px-4 py-3">Product</th>

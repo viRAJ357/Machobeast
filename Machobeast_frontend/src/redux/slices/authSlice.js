@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import API from '../../services/api';
-import { fetchUserCart, clearCart } from './cartSlice';
+import { fetchUserCart, clearCartLocal } from './cartSlice';
 import { clearOrders } from './orderSlice';
 
 const storedUser = JSON.parse(localStorage.getItem('machobeast_user') || 'null');
@@ -44,7 +44,7 @@ export const registerUserThunk = createAsyncThunk(
 
 export const logoutUserThunk = createAsyncThunk(
   'auth/logout',
-  async (_, { dispatch }) => {
+  async (_, { dispatch, getState }) => {
     try {
       await API.post('/auth/logout');
     } catch (error) {
@@ -52,7 +52,10 @@ export const logoutUserThunk = createAsyncThunk(
     } finally {
       localStorage.removeItem('machobeast_token');
       localStorage.removeItem('machobeast_user');
-      dispatch(clearCart());
+      // ⚠️ IMPORTANT: Only clear Redux + localStorage cart state on logout.
+      // Do NOT call API.delete('/cart') — that would wipe the user's saved
+      // cart from the database, destroying persistence across sessions.
+      dispatch(clearCartLocal());
       dispatch(clearOrders());
       dispatch(clearAuth());
     }

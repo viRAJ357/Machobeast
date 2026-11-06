@@ -1,11 +1,14 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import API from '../../services/api';
 
-// Helper to get user-specific storage key
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+// Get the localStorage key scoped to the currently stored user
 const getCartStorageKey = () => {
   try {
     const user = JSON.parse(localStorage.getItem('machobeast_user') || 'null');
-    return user?._id || user?.id ? `machobeast_cart_${user._id || user.id}` : 'machobeast_cart_guest';
+    const uid = user?._id || user?.id;
+    return uid ? `machobeast_cart_${uid}` : 'machobeast_cart_guest';
   } catch {
     return 'machobeast_cart_guest';
   }
@@ -23,73 +26,85 @@ const calculateTotals = (items = []) => {
   return { totalQuantity, totalAmount };
 };
 
+// Save items array to user-scoped localStorage key
 const saveCartToStorage = (items) => {
   try {
-    const key = getCartStorageKey();
-    localStorage.setItem(key, JSON.stringify(items));
+    localStorage.setItem(getCartStorageKey(), JSON.stringify(items));
   } catch (e) {
     console.error('Failed to persist cart locally:', e);
   }
 };
 
+// Remove user-scoped cart from localStorage (used on logout — does NOT touch DB)
+const removeCartFromStorage = () => {
+  try {
+    localStorage.removeItem(getCartStorageKey());
+  } catch (e) {
+    console.error('Failed to remove cart from storage:', e);
+  }
+};
+
+// Load from localStorage on app boot (before DB fetch arrives)
 const loadInitialCart = () => {
   try {
-    const key = getCartStorageKey();
-    const saved = localStorage.getItem(key);
+    const saved = localStorage.getItem(getCartStorageKey());
     if (saved) {
       const items = JSON.parse(saved);
-      if (Array.isArray(items)) {
-        const { totalQuantity, totalAmount } = calculateTotals(items);
-        return { items, totalQuantity, totalAmount };
+      if (Array.isArray(items) && items.length > 0) {
+        return { items, ...calculateTotals(items) };
       }
     }
   } catch (e) {
-    console.error('Failed to load initial cart:', e);
+    console.error('Failed to load initial cart from storage:', e);
   }
   return { items: [], totalQuantity: 0, totalAmount: 0 };
 };
 
-const initialCart = loadInitialCart();
-
-const initialState = {
-  items: initialCart.items,
-  totalQuantity: initialCart.totalQuantity,
-  totalAmount: initialCart.totalAmount,
-  discount: 0,
-  appliedCoupon: null,
-  loading: false,
-  error: null
-};
-
 // ─── Async Thunks ─────────────────────────────────────────────────────────────
 
-// Fetch cart for the authenticated user from the MongoDB database
+/**
+ * Fetch the authenticated user's cart from MongoDB.
+ * Called on login, OAuth callback, and on app mount when already authenticated.
+ *
+ * FIX: api.js response interceptor unwraps axios response.data already, so
+ * the value returned from API.get('/cart') is the ApiResponse body:
+ *   { statusCode, data: { items, totalQuantity, totalAmount }, message, success }
+ * Therefore items live at response.data.items (NOT response.items).
+ */
 export const fetchUserCart = createAsyncThunk(
   'cart/fetchUserCart',
   async (_, { rejectWithValue }) => {
     try {
       const token = localStorage.getItem('machobeast_token');
-      if (!token) return { items: [] };
+      if (!token) return { items: [], totalQuantity: 0, totalAmount: 0 };
 
-      const response = await API.get('/cart');
-      const cartData = response.data || response;
-      const items = cartData.items || [];
+      // api.js interceptor: response.data is the ApiResponse body
+      const apiResponse = await API.get('/cart');
 
-      // Save to user-specific localStorage cache
+      // ApiResponse shape: { statusCode, data: { items, totalQuantity, totalAmount }, ... }
+      const cartData = apiResponse?.data || {};
+      const items = Array.isArray(cartData.items) ? cartData.items : [];
+      const totals = calculateTotals(items);
+
+      // Persist fetched items into user-scoped localStorage
       saveCartToStorage(items);
 
       return {
         items,
-        totalQuantity: cartData.totalQuantity ?? calculateTotals(items).totalQuantity,
-        totalAmount: cartData.totalAmount ?? calculateTotals(items).totalAmount
+        totalQuantity: cartData.totalQuantity ?? totals.totalQuantity,
+        totalAmount: cartData.totalAmount ?? totals.totalAmount
       };
     } catch (error) {
+      console.error('fetchUserCart error:', error.message);
       return rejectWithValue(error.message);
     }
   }
 );
 
-// Synchronize current local items with the user's cart in the database
+/**
+ * Push the full current cart array to the server (used for mutations when logged in).
+ * We pass the plain JS items array — never Immer draft proxies.
+ */
 export const syncCartWithServer = createAsyncThunk(
   'cart/syncCartWithServer',
   async (items, { rejectWithValue }) => {
@@ -97,21 +112,24 @@ export const syncCartWithServer = createAsyncThunk(
       const token = localStorage.getItem('machobeast_token');
       if (!token) {
         saveCartToStorage(items);
-        return { items };
+        return { items, ...calculateTotals(items) };
       }
 
-      const response = await API.post('/cart/sync', { items });
-      const cartData = response.data || response;
-      const syncedItems = cartData.items || items;
+      const apiResponse = await API.post('/cart/sync', { items });
+      const cartData = apiResponse?.data || {};
+      const syncedItems = Array.isArray(cartData.items) ? cartData.items : items;
+      const totals = calculateTotals(syncedItems);
 
       saveCartToStorage(syncedItems);
 
       return {
         items: syncedItems,
-        totalQuantity: cartData.totalQuantity ?? calculateTotals(syncedItems).totalQuantity,
-        totalAmount: cartData.totalAmount ?? calculateTotals(syncedItems).totalAmount
+        totalQuantity: cartData.totalQuantity ?? totals.totalQuantity,
+        totalAmount: cartData.totalAmount ?? totals.totalAmount
       };
     } catch (error) {
+      console.error('syncCartWithServer error:', error.message);
+      // On sync failure keep the local items as-is so the user doesn't lose their cart
       saveCartToStorage(items);
       return rejectWithValue(error.message);
     }
@@ -120,10 +138,21 @@ export const syncCartWithServer = createAsyncThunk(
 
 // ─── Slice ────────────────────────────────────────────────────────────────────
 
+const { items: initItems, totalQuantity: initQty, totalAmount: initAmt } = loadInitialCart();
+
 const cartSlice = createSlice({
   name: 'cart',
-  initialState,
+  initialState: {
+    items: initItems,
+    totalQuantity: initQty,
+    totalAmount: initAmt,
+    discount: 0,
+    appliedCoupon: null,
+    loading: false,
+    error: null
+  },
   reducers: {
+    // Set cart items directly (used by order completion etc.)
     setCartItems: (state, action) => {
       const items = Array.isArray(action.payload) ? action.payload : [];
       state.items = items;
@@ -132,16 +161,18 @@ const cartSlice = createSlice({
       state.totalAmount = totalAmount;
       saveCartToStorage(items);
     },
+
+    // Add or increment an item in the cart
     addToCart: (state, action) => {
       const newItem = action.payload;
       const itemVariant = newItem.variant || '';
 
-      const existingItem = state.items.find(
+      const existing = state.items.find(
         (item) => String(item.id) === String(newItem.id) && (item.variant || '') === itemVariant
       );
 
-      if (existingItem) {
-        existingItem.quantity += Number(newItem.quantity) || 1;
+      if (existing) {
+        existing.quantity += Number(newItem.quantity) || 1;
       } else {
         state.items.push({
           id: String(newItem.id),
@@ -160,44 +191,32 @@ const cartSlice = createSlice({
       state.totalQuantity = totalQuantity;
       state.totalAmount = totalAmount;
 
+      // Persist locally immediately
       saveCartToStorage(state.items);
-
-      // Trigger background sync if logged in
-      const token = localStorage.getItem('machobeast_token');
-      if (token) {
-        API.post('/cart/sync', { items: state.items }).catch((err) => {
-          console.warn('Background cart sync failed:', err.message);
-        });
-      }
+      // Note: background DB sync is dispatched from the component/thunk level
+      // using syncCartWithServer to avoid Immer proxy serialisation issues.
     },
+
+    // Remove an item from the cart
     removeFromCart: (state, action) => {
       const { id, variant } = action.payload;
       const itemVariant = variant || '';
-
       state.items = state.items.filter(
         (item) => !(String(item.id) === String(id) && (item.variant || '') === itemVariant)
       );
-
       const { totalQuantity, totalAmount } = calculateTotals(state.items);
       state.totalQuantity = totalQuantity;
       state.totalAmount = totalAmount;
-
       saveCartToStorage(state.items);
-
-      const token = localStorage.getItem('machobeast_token');
-      if (token) {
-        API.post('/cart/sync', { items: state.items }).catch((err) => {
-          console.warn('Background cart sync failed:', err.message);
-        });
-      }
     },
+
+    // Change quantity of an existing cart item
     updateQuantity: (state, action) => {
       const { id, variant, quantity } = action.payload;
       const itemVariant = variant || '';
       const item = state.items.find(
         (i) => String(i.id) === String(id) && (i.variant || '') === itemVariant
       );
-
       const newQty = Number(quantity);
       if (item && newQty > 0) {
         item.quantity = newQty;
@@ -206,47 +225,51 @@ const cartSlice = createSlice({
           (i) => !(String(i.id) === String(id) && (i.variant || '') === itemVariant)
         );
       }
-
       const { totalQuantity, totalAmount } = calculateTotals(state.items);
       state.totalQuantity = totalQuantity;
       state.totalAmount = totalAmount;
-
       saveCartToStorage(state.items);
-
-      const token = localStorage.getItem('machobeast_token');
-      if (token) {
-        API.post('/cart/sync', { items: state.items }).catch((err) => {
-          console.warn('Background cart sync failed:', err.message);
-        });
-      }
     },
+
+    /**
+     * clearCartLocal — clears Redux state + localStorage ONLY.
+     * Used on LOGOUT so the DB cart is NOT deleted (it persists for next login).
+     */
+    clearCartLocal: (state) => {
+      removeCartFromStorage();
+      state.items = [];
+      state.totalQuantity = 0;
+      state.totalAmount = 0;
+      state.discount = 0;
+      state.appliedCoupon = null;
+    },
+
+    /**
+     * clearCart — clears Redux state + localStorage + DB cart.
+     * Used ONLY after a successful order placement.
+     */
     clearCart: (state) => {
+      removeCartFromStorage();
       state.items = [];
       state.totalQuantity = 0;
       state.totalAmount = 0;
       state.discount = 0;
       state.appliedCoupon = null;
 
-      try {
-        const key = getCartStorageKey();
-        localStorage.removeItem(key);
-      } catch (e) {
-        console.error('Failed to clear cart storage:', e);
-      }
-
       const token = localStorage.getItem('machobeast_token');
       if (token) {
         API.delete('/cart').catch((err) => {
-          console.warn('Background cart clear failed:', err.message);
+          console.warn('Background cart clear (DB) failed:', err.message);
         });
       }
     }
   },
   extraReducers: (builder) => {
     builder
-      // Fetch user cart
+      // fetchUserCart
       .addCase(fetchUserCart.pending, (state) => {
         state.loading = true;
+        state.error = null;
       })
       .addCase(fetchUserCart.fulfilled, (state, action) => {
         state.loading = false;
@@ -258,7 +281,7 @@ const cartSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
-      // Sync cart
+      // syncCartWithServer
       .addCase(syncCartWithServer.fulfilled, (state, action) => {
         state.items = action.payload.items;
         state.totalQuantity = action.payload.totalQuantity;
@@ -267,5 +290,13 @@ const cartSlice = createSlice({
   }
 });
 
-export const { addToCart, removeFromCart, updateQuantity, clearCart, setCartItems } = cartSlice.actions;
+export const {
+  addToCart,
+  removeFromCart,
+  updateQuantity,
+  clearCart,
+  clearCartLocal,
+  setCartItems
+} = cartSlice.actions;
+
 export default cartSlice.reducer;

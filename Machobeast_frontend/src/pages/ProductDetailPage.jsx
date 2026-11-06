@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { getProductById, getBrandName, getCategoryName } from '../data/products.js';
 import { addToCart } from '../redux/slices/cartSlice';
+import { useCartSync } from '../hooks/useCartSync';
 import { ProductCard } from '../components/product/ProductCard';
 
 export const ProductDetailPage = () => {
@@ -34,6 +35,7 @@ export const ProductDetailPage = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const allProducts = useSelector((state) => state.products.items);
+  const { addItem } = useCartSync();
 
   // Scroll to top on id change
   useEffect(() => {
@@ -143,18 +145,16 @@ export const ProductDetailPage = () => {
 
   const handleAddToCart = () => {
     if (!product) return;
-    dispatch(
-      addToCart({
-        id: product.id,
-        name: product.name,
-        variant: `${selectedVariant.weight}, ${selectedVariant.flavor}`,
-        price: selectedVariant.price,
-        mrp: selectedVariant.mrp,
-        image: product.image,
-        quantity: quantity,
-        isVeg: product.isVeg !== false
-      })
-    );
+    addItem({
+      id: product.id,
+      name: product.name,
+      variant: `${selectedVariant.weight}, ${selectedVariant.flavor}`,
+      price: selectedVariant.price,
+      mrp: selectedVariant.mrp,
+      image: product.image,
+      quantity: quantity,
+      isVeg: product.isVeg !== false
+    });
     setAddedToast(true);
     setTimeout(() => setAddedToast(false), 2500);
   };
@@ -831,27 +831,34 @@ export const ProductDetailPage = () => {
       </div>
 
       {/* ======================================================== */}
-      {/* MOBILE STICKY BOTTOM BAR */}
+      {/* MOBILE STICKY BOTTOM BAR (Positioned above MobileBottomNav) */}
       {/* ======================================================== */}
-      <div className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-gray-200 px-4 py-3 flex items-center justify-between shadow-2xl">
+      <div className="md:hidden fixed bottom-14 left-0 right-0 z-30 bg-white/95 backdrop-blur-md border-t border-gray-200 px-4 py-2.5 flex items-center justify-between shadow-[0_-4px_12px_rgba(0,0,0,0.08)]">
         <div className="flex flex-col">
-          <span className="text-[11px] text-gray-500 font-medium">Total Price:</span>
-          <span className="font-black text-lg text-slate-950 leading-none">
-            ₹{(selectedVariant.price * quantity).toLocaleString('en-IN')}
-          </span>
+          <span className="text-[10px] text-gray-500 font-medium">Price ({quantity} {quantity === 1 ? 'item' : 'items'}):</span>
+          <div className="flex items-baseline gap-1">
+            <span className="font-black text-base text-slate-950 leading-tight">
+              ₹{(selectedVariant.price * quantity).toLocaleString('en-IN')}
+            </span>
+            {selectedVariant.mrp > selectedVariant.price && (
+              <span className="text-[11px] text-gray-400 line-through">
+                ₹{(selectedVariant.mrp * quantity).toLocaleString('en-IN')}
+              </span>
+            )}
+          </div>
         </div>
 
         <div className="flex items-center gap-2">
           <button
             onClick={handleAddToCart}
-            className="bg-amber-400 active:bg-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider py-2.5 px-4 rounded-lg flex items-center gap-1.5 shadow-sm"
+            className="bg-amber-400 active:bg-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider py-2 px-3.5 rounded-lg flex items-center gap-1.5 shadow-sm active:scale-95"
           >
             <ShoppingCart className="w-4 h-4" />
             <span>Add</span>
           </button>
           <button
             onClick={handleBuyNow}
-            className="bg-black active:bg-slate-900 text-amber-400 font-black text-xs uppercase tracking-wider py-2.5 px-4 rounded-lg flex items-center gap-1.5 shadow-sm"
+            className="bg-black active:bg-slate-900 text-amber-400 font-black text-xs uppercase tracking-wider py-2 px-3.5 rounded-lg flex items-center gap-1.5 shadow-sm active:scale-95"
           >
             <Zap className="w-4 h-4 fill-amber-400" />
             <span>Buy Now</span>

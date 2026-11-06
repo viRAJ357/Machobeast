@@ -1,13 +1,21 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { Menu, X, ChevronRight, Sparkles, Flame, Tag, ShieldCheck } from 'lucide-react';
+import { logoutUserThunk } from '../../redux/slices/authSlice';
 
 export const CategoryNav = () => {
   const location = useLocation();
   const currentPath = location.pathname + location.search;
   const { categories, brands } = useSelector((state) => state.products);
+  const { isAuthenticated, user } = useSelector((state) => state.auth);
+  const dispatch = useDispatch();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
+  const handleLogout = () => {
+    dispatch(logoutUserThunk());
+    setIsDrawerOpen(false);
+  };
 
   const machoQuickLinks = [
     { label: 'All Supplements', path: '/shop' },
@@ -68,14 +76,29 @@ export const CategoryNav = () => {
       {/* MachoBeast Full Category Sidebar Drawer ("All" Menu) */}
       {isDrawerOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex animate-in fade-in">
-          <div className="w-80 sm:w-96 bg-white h-full shadow-2xl flex flex-col text-slate-900 animate-in slide-in-from-left duration-200">
+          <div className="w-[85vw] max-w-xs sm:max-w-sm sm:w-96 bg-white h-full shadow-2xl flex flex-col text-slate-900 animate-in slide-in-from-left duration-200">
             {/* Drawer Header */}
             <div className="bg-[#232f3e] text-white p-4 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center font-bold">
+                <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center font-bold text-sm">
                   👤
                 </div>
-                <h3 className="font-bold text-sm">Hello, Sign In</h3>
+                {isAuthenticated ? (
+                  <div className="flex flex-col leading-tight">
+                    <h3 className="font-bold text-sm">
+                      Hello, {user?.name?.split(' ')[0] || 'User'}
+                    </h3>
+                    <span className="text-[11px] text-gray-300 truncate max-w-[180px]">{user?.email}</span>
+                  </div>
+                ) : (
+                  <Link
+                    to="/login"
+                    onClick={() => setIsDrawerOpen(false)}
+                    className="font-bold text-sm hover:text-[#febd69] transition-colors"
+                  >
+                    Hello, <span className="text-[#febd69]">Sign In</span>
+                  </Link>
+                )}
               </div>
               <button
                 onClick={() => setIsDrawerOpen(false)}
@@ -159,13 +182,15 @@ export const CategoryNav = () => {
                 <p className="font-black text-gray-900 text-xs uppercase tracking-wider">
                   Help & Settings
                 </p>
-                <Link
-                  to="/admin/dashboard"
-                  onClick={() => setIsDrawerOpen(false)}
-                  className="block py-1.5 text-amber-700 font-bold"
-                >
-                  Admin Seller Central (Manage Items)
-                </Link>
+                {user?.role === 'admin' && (
+                  <Link
+                    to="/admin/dashboard"
+                    onClick={() => setIsDrawerOpen(false)}
+                    className="block py-1.5 text-amber-700 font-bold"
+                  >
+                    ★ Admin Seller Central
+                  </Link>
+                )}
                 <Link
                   to="/orders"
                   onClick={() => setIsDrawerOpen(false)}
@@ -180,6 +205,22 @@ export const CategoryNav = () => {
                 >
                   Your Account
                 </Link>
+                {isAuthenticated ? (
+                  <button
+                    onClick={handleLogout}
+                    className="block w-full text-left py-1.5 text-red-600 font-semibold hover:text-red-800 border-t border-gray-200 mt-1 pt-2 cursor-pointer"
+                  >
+                    Sign Out
+                  </button>
+                ) : (
+                  <Link
+                    to="/login"
+                    onClick={() => setIsDrawerOpen(false)}
+                    className="block py-1.5 text-[#007185] font-semibold hover:text-[#c7511f] border-t border-gray-200 mt-1 pt-2"
+                  >
+                    Sign In / Create Account
+                  </Link>
+                )}
               </div>
             </div>
           </div>

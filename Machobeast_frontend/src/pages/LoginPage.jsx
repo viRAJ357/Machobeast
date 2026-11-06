@@ -45,8 +45,8 @@ export const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center px-4 py-12">
-      <div className="max-w-md w-full bg-white rounded-2xl border border-gray-200 p-8 shadow-xl">
+    <div className="min-h-[80vh] flex items-center justify-center px-3 sm:px-4 py-6 sm:py-12">
+      <div className="max-w-md w-full bg-white rounded-2xl border border-gray-200 p-5 sm:p-8 shadow-xl">
 
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-12 h-12 bg-black text-amber-400 rounded-xl mb-3 shadow-md">

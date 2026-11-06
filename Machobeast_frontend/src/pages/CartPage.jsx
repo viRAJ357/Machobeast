@@ -19,6 +19,7 @@ import {
   X
 } from 'lucide-react';
 import { removeFromCart, updateQuantity, clearCart } from '../redux/slices/cartSlice';
+import { useCartSync } from '../hooks/useCartSync';
 
 // Available demo promo codes
 const AVAILABLE_COUPONS = [
@@ -45,6 +46,7 @@ const AVAILABLE_COUPONS = [
 export const CartPage = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const { removeItem, changeQty, clearAll } = useCartSync();
 
   const { items = [] } = useSelector((state) => state.cart);
   const { isAuthenticated } = useSelector((state) => state.auth || {});
@@ -124,36 +126,32 @@ export const CartPage = () => {
 
   // Handlers for cart actions
   const handleIncreaseQty = (item) => {
-    dispatch(
-      updateQuantity({
-        id: item.id,
-        variant: item.variant,
-        quantity: (item.quantity || 1) + 1
-      })
-    );
+    changeQty({
+      id: item.id,
+      variant: item.variant,
+      quantity: (item.quantity || 1) + 1
+    });
   };
 
   const handleDecreaseQty = (item) => {
     if (item.quantity > 1) {
-      dispatch(
-        updateQuantity({
-          id: item.id,
-          variant: item.variant,
-          quantity: item.quantity - 1
-        })
-      );
+      changeQty({
+        id: item.id,
+        variant: item.variant,
+        quantity: item.quantity - 1
+      });
     } else {
       // Remove when reducing from 1
-      dispatch(removeFromCart({ id: item.id, variant: item.variant }));
+      removeItem({ id: item.id, variant: item.variant });
     }
   };
 
   const handleRemoveItem = (item) => {
-    dispatch(removeFromCart({ id: item.id, variant: item.variant }));
+    removeItem({ id: item.id, variant: item.variant });
   };
 
   const handleClearAll = () => {
-    dispatch(clearCart());
+    clearAll();
     setAppliedCoupon(null);
     setShowClearConfirm(false);
   };
@@ -778,7 +776,7 @@ export const CartPage = () => {
               <div className="pt-6">
                 <button
                   onClick={handleProceedToCheckout}
-                  className="w-full bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-black font-extrabold text-sm py-4 px-6 rounded-xl shadow-lg hover:shadow-amber-500/25 transition-all flex items-center justify-center gap-2 uppercase tracking-wider"
+                  className="w-full bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-black font-extrabold text-sm py-4 px-6 rounded-xl shadow-lg hover:shadow-amber-500/25 transition-all flex items-center justify-center gap-2 uppercase tracking-wider active:scale-[0.99] cursor-pointer"
                 >
                   <span>Proceed to Checkout</span>
                   <ArrowRight className="w-4 h-4" />
@@ -796,6 +794,23 @@ export const CartPage = () => {
 
         </div>
 
+      </div>
+
+      {/* Mobile Sticky Quick Checkout Bar (Positioned above MobileBottomNav) */}
+      <div className="md:hidden fixed bottom-14 inset-x-0 z-30 bg-white/95 backdrop-blur-md border-t border-gray-200 px-4 py-2.5 flex items-center justify-between shadow-[0_-4px_16px_rgba(0,0,0,0.1)]">
+        <div>
+          <span className="text-[10px] text-gray-500 font-medium">Total ({itemsCount} items):</span>
+          <p className="font-display font-black text-base text-slate-950 leading-tight">
+            ₹{finalTotal.toLocaleString('en-IN')}
+          </p>
+        </div>
+        <button
+          onClick={handleProceedToCheckout}
+          className="bg-amber-400 active:bg-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider py-2.5 px-5 rounded-xl flex items-center gap-2 shadow-md active:scale-95 cursor-pointer"
+        >
+          <span>Checkout</span>
+          <ArrowRight className="w-3.5 h-3.5" />
+        </button>
       </div>
 
     </div>

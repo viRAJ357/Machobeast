@@ -82,26 +82,26 @@ export const HomePage = () => {
       {/* 1. MachoBeast Hero Carousel with Gradient Fade */}
       <div className="relative w-full max-w-[1500px] mx-auto overflow-hidden">
         <div
-          className={`relative h-[280px] sm:h-[380px] md:h-[460px] bg-gradient-to-r ${activeBanner.bgGradient} flex items-center justify-between px-6 sm:px-14 text-white transition-all duration-700`}
+          className={`relative min-h-[260px] sm:h-[360px] md:h-[460px] bg-gradient-to-r ${activeBanner.bgGradient} flex items-center justify-between px-4 sm:px-8 md:px-14 py-8 sm:py-0 text-white transition-all duration-700`}
         >
           {/* Hero Text */}
-          <div className="max-w-xl z-10 space-y-3">
-            <span className="inline-block bg-[#febd69] text-slate-900 font-extrabold text-[11px] px-3 py-1 rounded-xs uppercase tracking-wider shadow-sm">
+          <div className="max-w-xl z-10 space-y-2 sm:space-y-3">
+            <span className="inline-block bg-[#febd69] text-slate-900 font-extrabold text-[10px] sm:text-[11px] px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-xs uppercase tracking-wider shadow-sm">
               {activeBanner.tag}
             </span>
-            <h1 className="text-3xl sm:text-5xl font-black tracking-tight leading-none text-white drop-shadow-md">
+            <h1 className="text-2xl sm:text-4xl md:text-5xl font-black tracking-tight leading-tight sm:leading-none text-white drop-shadow-md">
               {activeBanner.title}
             </h1>
-            <p className={`text-base sm:text-xl font-bold ${activeBanner.textColor}`}>
+            <p className={`text-sm sm:text-lg md:text-xl font-bold ${activeBanner.textColor}`}>
               {activeBanner.subtitle} • {activeBanner.discount}
             </p>
-            <div className="pt-2">
+            <div className="pt-1 sm:pt-2">
               <Link
                 to={activeBanner.link}
-                className="inline-flex items-center gap-2 bg-[#ffd814] hover:bg-[#f7ca00] text-slate-900 font-bold px-6 py-2.5 rounded-full text-xs sm:text-sm shadow-md transition-all cursor-pointer"
+                className="inline-flex items-center gap-2 bg-[#ffd814] hover:bg-[#f7ca00] text-slate-900 font-bold px-5 sm:px-6 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm shadow-md transition-all cursor-pointer active:scale-95"
               >
                 <span>Shop the Sale</span>
-                <ArrowRight className="w-4 h-4" />
+                <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </Link>
             </div>
           </div>
@@ -112,30 +112,32 @@ export const HomePage = () => {
               src={activeBanner.image}
               alt={activeBanner.title}
               draggable="false"
-              className="max-h-[320px] object-contain drop-shadow-2xl rounded-xl pointer-events-none"
+              className="max-h-[240px] md:max-h-[320px] object-contain drop-shadow-2xl rounded-xl pointer-events-none"
             />
           </div>
 
           {/* Carousel Arrows */}
           <button
             onClick={prevBanner}
-            className="absolute left-2 top-1/3 -translate-y-1/2 w-10 h-16 bg-white/20 hover:bg-white/40 text-white rounded-r flex items-center justify-center transition-all z-20 cursor-pointer"
+            aria-label="Previous Slide"
+            className="absolute left-1 sm:left-2 top-1/2 sm:top-1/3 -translate-y-1/2 w-8 sm:w-10 h-12 sm:h-16 bg-white/20 hover:bg-white/40 text-white rounded-r flex items-center justify-center transition-all z-20 cursor-pointer"
           >
-            <ChevronLeft className="w-7 h-7" />
+            <ChevronLeft className="w-5 h-5 sm:w-7 sm:h-7" />
           </button>
           <button
             onClick={nextBanner}
-            className="absolute right-2 top-1/3 -translate-y-1/2 w-10 h-16 bg-white/20 hover:bg-white/40 text-white rounded-l flex items-center justify-center transition-all z-20 cursor-pointer"
+            aria-label="Next Slide"
+            className="absolute right-1 sm:right-2 top-1/2 sm:top-1/3 -translate-y-1/2 w-8 sm:w-10 h-12 sm:h-16 bg-white/20 hover:bg-white/40 text-white rounded-l flex items-center justify-center transition-all z-20 cursor-pointer"
           >
-            <ChevronRight className="w-7 h-7" />
+            <ChevronRight className="w-5 h-5 sm:w-7 sm:h-7" />
           </button>
 
           {/* Gradient Mask that fades into the 4-card grid */}
-          <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#eaeded] via-[#eaeded]/70 to-transparent pointer-events-none z-10"></div>
+          <div className="absolute inset-x-0 bottom-0 h-28 sm:h-40 bg-gradient-to-t from-[#eaeded] via-[#eaeded]/70 to-transparent pointer-events-none z-10"></div>
         </div>
 
         {/* 2. MachoBeast 4-Quadrant Card Grid Overlapping Hero */}
-        <div className="relative -mt-20 sm:-mt-36 z-20 px-3 sm:px-4 max-w-[1500px] mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="relative -mt-10 sm:-mt-24 md:-mt-36 z-20 px-3 sm:px-4 max-w-[1500px] mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           
           {/* Card 1: 4-Quadrant Whey & Protein */}
           <div className="bg-white p-4 rounded-xs shadow-md border border-gray-200 flex flex-col justify-between">
@@ -319,7 +321,7 @@ export const HomePage = () => {
             </Link>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5 sm:gap-3.5">
             {bestsellers.slice(0, 5).map((p) => (
               <ProductCard key={p.id} product={p} />
             ))}
@@ -372,7 +374,7 @@ export const HomePage = () => {
             </Link>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5 sm:gap-3.5">
             {proteinProducts.slice(0, 5).map((p) => (
               <ProductCard key={p.id} product={p} />
             ))}
@@ -400,7 +402,7 @@ export const HomePage = () => {
             </Link>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5 sm:gap-3.5">
             {massGainerProducts.slice(0, 5).map((p) => (
               <ProductCard key={p.id} product={p} />
             ))}
