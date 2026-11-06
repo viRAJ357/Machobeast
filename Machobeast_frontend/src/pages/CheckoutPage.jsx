@@ -28,14 +28,14 @@ export const CheckoutPage = () => {
   const { items, totalAmount } = useSelector((state) => state.cart);
   const { user } = useSelector((state) => state.auth);
 
-  // Address Form State
+  // Address Form State (pre-filled with synced user delivery location)
   const [address, setAddress] = useState({
     fullName: user?.name || '',
     phone: user?.phone || '',
-    pincode: '',
+    pincode: user?.deliveryPincode || '',
     flat: '',
     area: '',
-    city: '',
+    city: user?.deliveryCity || '',
     state: '',
     landmark: '',
     type: 'Home'

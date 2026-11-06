@@ -57,10 +57,30 @@ export const fetchProductsThunk = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await API.get('/products');
-      if (response && response.data && Array.isArray(response.data)) {
-        return response.data;
-      }
-      return [];
+      const list = Array.isArray(response)
+        ? response
+        : Array.isArray(response?.data)
+        ? response.data
+        : [];
+      return list;
+    } catch (err) {
+      return rejectWithValue(err.message);
+    }
+  }
+);
+
+// Async thunk to fetch distinct categories from backend API
+export const fetchCategoriesThunk = createAsyncThunk(
+  'products/fetchCategories',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await API.get('/products/categories');
+      const cats =
+        response?.data?.categories ||
+        response?.categories ||
+        (Array.isArray(response?.data) ? response.data : []) ||
+        (Array.isArray(response) ? response : []);
+      return Array.isArray(cats) ? cats : [];
     } catch (err) {
       return rejectWithValue(err.message);
     }
@@ -176,7 +196,63 @@ const productSlice = createSlice({
           const remoteIds = new Set(formatted.map((p) => p.id));
           const localOnly = state.items.filter((p) => !remoteIds.has(p.id));
           state.items = [...formatted, ...localOnly];
+
+          // Dynamically detect any new categories from loaded backend products
+          let addedNewCategory = false;
+          formatted.forEach((p) => {
+            if (p.category) {
+              const catSlug = p.category.toLowerCase().trim();
+              const exists = state.categories.some(
+                (c) => c.id.toLowerCase() === catSlug || c.name.toLowerCase() === catSlug
+              );
+              if (!exists) {
+                const displayName = catSlug
+                  .replace(/[-_]/g, ' ')
+                  .replace(/\b\w/g, (l) => l.toUpperCase());
+                state.categories.push({
+                  id: catSlug,
+                  name: displayName,
+                  icon: '⚡'
+                });
+                addedNewCategory = true;
+              }
+            }
+          });
+          if (addedNewCategory) {
+            localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(state.categories));
+          }
+
           saveProductsToStorage(state.items);
+        }
+      })
+      .addCase(fetchCategoriesThunk.fulfilled, (state, action) => {
+        if (action.payload && action.payload.length > 0) {
+          let updated = false;
+          action.payload.forEach((catItem) => {
+            const catId = typeof catItem === 'string' ? catItem : catItem?.id || catItem?._id;
+            if (!catId) return;
+            const slug = catId.toLowerCase().trim();
+            const exists = state.categories.some(
+              (c) => c.id.toLowerCase() === slug || c.name.toLowerCase() === slug
+            );
+            if (!exists) {
+              const displayName =
+                typeof catItem === 'object' && catItem.name
+                  ? catItem.name
+                  : catId
+                      .replace(/[-_]/g, ' ')
+                      .replace(/\b\w/g, (l) => l.toUpperCase());
+              state.categories.push({
+                id: slug,
+                name: displayName,
+                icon: typeof catItem === 'object' && catItem.icon ? catItem.icon : '⚡'
+              });
+              updated = true;
+            }
+          });
+          if (updated) {
+            localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(state.categories));
+          }
         }
       });
   }

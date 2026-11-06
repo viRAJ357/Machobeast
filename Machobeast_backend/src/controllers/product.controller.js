@@ -10,18 +10,76 @@ export const getProducts = async (req, res, next) => {
     const { category, brand, search } = req.query;
     let query = {};
 
-    if (category) query.category = category;
-    if (brand) query.brand = brand;
+    if (category && category !== 'all') {
+      const catList = category.split(',').map((c) => c.trim()).filter(Boolean);
+      if (catList.length === 1) {
+        const escaped = catList[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const pattern = escaped.replace(/[- ]+/g, '[- ]?');
+        query.category = new RegExp(`^${pattern}$`, 'i');
+      } else if (catList.length > 1) {
+        query.category = {
+          $in: catList.map((c) => {
+            const escaped = c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const pattern = escaped.replace(/[- ]+/g, '[- ]?');
+            return new RegExp(`^${pattern}$`, 'i');
+          })
+        };
+      }
+    }
+
+    if (brand && brand !== 'all') {
+      const brandList = brand.split(',').map((b) => b.trim()).filter(Boolean);
+      if (brandList.length === 1) {
+        const escaped = brandList[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        query.brand = new RegExp(`^${escaped}$`, 'i');
+      } else if (brandList.length > 1) {
+        query.brand = {
+          $in: brandList.map((b) => {
+            const escaped = b.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            return new RegExp(`^${escaped}$`, 'i');
+          })
+        };
+      }
+    }
+
     if (search) {
+      const cleanSearch = search.trim();
+      const escaped = cleanSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const pattern = escaped.replace(/\s+/g, '[- ]?');
+      const searchRegex = new RegExp(pattern, 'i');
       query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } },
-        { brand: { $regex: search, $options: 'i' } }
+        { name: searchRegex },
+        { description: searchRegex },
+        { brand: searchRegex },
+        { category: searchRegex }
       ];
     }
 
     const products = await Product.find(query).sort({ createdAt: -1 });
     return res.status(200).json(new ApiResponse(200, products, 'Products fetched successfully'));
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get all unique categories and product counts
+// @route   GET /api/v1/products/categories
+// @access  Public
+export const getCategories = async (req, res, next) => {
+  try {
+    const categories = await Product.distinct('category');
+    const counts = await Product.aggregate([
+      { $group: { _id: '$category', count: { $sum: 1 } } }
+    ]);
+
+    const countsMap = {};
+    counts.forEach((item) => {
+      if (item._id) countsMap[item._id] = item.count;
+    });
+
+    return res.status(200).json(
+      new ApiResponse(200, { categories, counts: countsMap }, 'Categories fetched successfully')
+    );
   } catch (error) {
     next(error);
   }

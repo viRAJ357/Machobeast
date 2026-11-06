@@ -2,11 +2,48 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import API from '../../services/api';
 import { fetchUserCart, clearCartLocal } from './cartSlice';
 import { clearOrders } from './orderSlice';
+import { saveGuestLocation, inferCityFromPincode } from '../../utils/locationUtils';
 
 const storedUser = JSON.parse(localStorage.getItem('machobeast_user') || 'null');
 const storedToken = localStorage.getItem('machobeast_token') || null;
 
 // ─── Thunks ───────────────────────────────────────────────────────────────────
+
+export const updateDeliveryLocationThunk = createAsyncThunk(
+  'auth/updateDeliveryLocation',
+  async ({ pincode, city }, { rejectWithValue }) => {
+    try {
+      const resolvedCity = city || inferCityFromPincode(pincode);
+      const token = localStorage.getItem('machobeast_token');
+      
+      // If user is authenticated, save directly to MongoDB database
+      if (token) {
+        const response = await API.put('/auth/location', { pincode, city: resolvedCity });
+        const locationData = response.data || { deliveryPincode: pincode, deliveryCity: resolvedCity };
+        
+        // Update user in localStorage
+        const currentUser = JSON.parse(localStorage.getItem('machobeast_user') || '{}');
+        const updatedUser = {
+          ...currentUser,
+          deliveryPincode: locationData.deliveryPincode,
+          deliveryCity: locationData.deliveryCity
+        };
+        localStorage.setItem('machobeast_user', JSON.stringify(updatedUser));
+        
+        return locationData;
+      } else {
+        // Guest user: save to localStorage
+        const data = saveGuestLocation(pincode, resolvedCity);
+        return { deliveryPincode: data.pincode, deliveryCity: data.city };
+      }
+    } catch (error) {
+      console.error('Failed to sync location to database:', error);
+      // Fallback save locally
+      saveGuestLocation(pincode, city);
+      return rejectWithValue(error.message);
+    }
+  }
+);
 
 export const loginUserThunk = createAsyncThunk(
   'auth/login',
@@ -100,10 +137,23 @@ const authSlice = createSlice({
       state.isAuthenticated = true;
       state.loading = false;
       state.error = null;
+    },
+    setDeliveryLocation: (state, action) => {
+      if (state.user) {
+        state.user.deliveryPincode = action.payload.deliveryPincode;
+        state.user.deliveryCity = action.payload.deliveryCity;
+      }
     }
   },
   extraReducers: (builder) => {
     builder
+      // Update delivery location in DB
+      .addCase(updateDeliveryLocationThunk.fulfilled, (state, action) => {
+        if (state.user) {
+          state.user.deliveryPincode = action.payload.deliveryPincode;
+          state.user.deliveryCity = action.payload.deliveryCity;
+        }
+      })
       // Login
       .addCase(loginUserThunk.pending, (state) => {
         state.loading = true;
@@ -137,5 +187,5 @@ const authSlice = createSlice({
   }
 });
 
-export const { clearAuth, clearAuthError, setUser } = authSlice.actions;
+export const { clearAuth, clearAuthError, setUser, setDeliveryLocation } = authSlice.actions;
 export default authSlice.reducer;

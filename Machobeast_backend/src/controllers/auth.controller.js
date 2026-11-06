@@ -4,6 +4,28 @@ import { ApiError } from '../utils/apiError.js';
 import { ApiResponse } from '../utils/apiResponse.js';
 import { ENV } from '../config/env.js';
 
+// Helper to infer Indian city from 6-digit postal code
+export const inferCityFromPincode = (pincode) => {
+  const pin = String(pincode || '').trim();
+  if (pin.startsWith('11')) return 'New Delhi';
+  if (pin.startsWith('12') || pin.startsWith('13')) return 'Gurugram';
+  if (pin.startsWith('14') || pin.startsWith('15') || pin.startsWith('16')) return 'Chandigarh';
+  if (pin.startsWith('20')) return 'Noida';
+  if (pin.startsWith('22')) return 'Lucknow';
+  if (pin.startsWith('30')) return 'Jaipur';
+  if (pin.startsWith('38')) return 'Ahmedabad';
+  if (pin.startsWith('40')) return 'Mumbai';
+  if (pin.startsWith('41')) return 'Pune';
+  if (pin.startsWith('45')) return 'Indore';
+  if (pin.startsWith('50')) return 'Hyderabad';
+  if (pin.startsWith('56')) return 'Bengaluru';
+  if (pin.startsWith('60')) return 'Chennai';
+  if (pin.startsWith('68')) return 'Kochi';
+  if (pin.startsWith('70')) return 'Kolkata';
+  if (pin.startsWith('80')) return 'Patna';
+  return 'India';
+};
+
 // Helper to set auth cookie + respond
 const sendTokenResponse = (user, statusCode, res, message) => {
   const token = generateToken(user._id, user.role);
@@ -27,6 +49,8 @@ const sendTokenResponse = (user, statusCode, res, message) => {
           phone: user.phone,
           avatar: user.avatar,
           provider: user.provider,
+          deliveryPincode: user.deliveryPincode || '400001',
+          deliveryCity: user.deliveryCity || 'Mumbai',
           isVerified: user.isVerified
         },
         token
@@ -133,6 +157,43 @@ export const getMeProfile = async (req, res, next) => {
   }
 };
 
+// @desc    Update current user's delivery location / pincode
+// @route   PUT /api/v1/auth/location
+// @access  Private
+export const updateDeliveryLocation = async (req, res, next) => {
+  try {
+    const { pincode, city } = req.body;
+    if (!pincode) {
+      return next(new ApiError(400, 'Pincode is required'));
+    }
+
+    const cleanPin = String(pincode).trim();
+    const resolvedCity = city ? String(city).trim() : inferCityFromPincode(cleanPin);
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return next(new ApiError(404, 'User not found'));
+    }
+
+    user.deliveryPincode = cleanPin;
+    user.deliveryCity = resolvedCity;
+    await user.save();
+
+    return res.status(200).json(
+      new ApiResponse(
+        200,
+        {
+          deliveryPincode: user.deliveryPincode,
+          deliveryCity: user.deliveryCity
+        },
+        'Delivery location updated in database successfully'
+      )
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
 // @desc    Handle OAuth callback — issue JWT and redirect to frontend
 // @route   GET /api/v1/auth/google/callback  (called by Passport internally)
 // @access  Internal
@@ -155,6 +216,8 @@ export const oAuthCallback = async (req, res) => {
         phone: user.phone,
         avatar: user.avatar,
         provider: user.provider,
+        deliveryPincode: user.deliveryPincode || '400001',
+        deliveryCity: user.deliveryCity || 'Mumbai',
         isVerified: user.isVerified
       })
     );

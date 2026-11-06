@@ -5,6 +5,7 @@ import {
   loginUser,
   logoutUser,
   getMeProfile,
+  updateDeliveryLocation,
   oAuthCallback
 } from '../controllers/auth.controller.js';
 import { protect } from '../middlewares/auth.middleware.js';
@@ -16,6 +17,7 @@ router.post('/register', registerUser);
 router.post('/login', loginUser);
 router.post('/logout', logoutUser);
 router.get('/me', protect, getMeProfile);
+router.put('/location', protect, updateDeliveryLocation);
 
 // ─── Google OAuth ─────────────────────────────────────────────────────────────
 router.get(

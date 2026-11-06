@@ -63,6 +63,14 @@ const userSchema = new mongoose.Schema(
         isDefault: { type: Boolean, default: false }
       }
     ],
+    deliveryPincode: {
+      type: String,
+      default: '400001'
+    },
+    deliveryCity: {
+      type: String,
+      default: 'Mumbai'
+    },
     isVerified: {
       type: Boolean,
       default: false

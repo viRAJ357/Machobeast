@@ -90,26 +90,21 @@ export const ShopPage = () => {
 
   // Sync state if URL changes from outside (e.g. Navbar search or Header link click)
   useEffect(() => {
-    if (urlSearch !== null && urlSearch !== searchQuery) {
-      setSearchQuery(urlSearch);
-      setCurrentPage(1);
-    }
+    const q = urlSearch || '';
+    setSearchQuery(q);
+    setCurrentPage(1);
   }, [urlSearch]);
 
   useEffect(() => {
-    if (urlCategory !== null) {
-      const cats = urlCategory ? urlCategory.split(',').filter(Boolean) : [];
-      setSelectedCategories(cats);
-      setCurrentPage(1);
-    }
+    const cats = urlCategory ? urlCategory.split(',').filter(Boolean) : [];
+    setSelectedCategories(cats);
+    setCurrentPage(1);
   }, [urlCategory]);
 
   useEffect(() => {
-    if (urlBrand !== null) {
-      const brs = urlBrand ? urlBrand.split(',').filter(Boolean) : [];
-      setSelectedBrands(brs);
-      setCurrentPage(1);
-    }
+    const brs = urlBrand ? urlBrand.split(',').filter(Boolean) : [];
+    setSelectedBrands(brs);
+    setCurrentPage(1);
   }, [urlBrand]);
 
   // Update URL Search Params whenever primary filters change
@@ -202,21 +197,39 @@ export const ShopPage = () => {
   const filteredProducts = useMemo(() => {
     let result = [...allProducts];
 
-    // Search query filter (matches name, description, brand, category)
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim();
-      result = result.filter(
-        (p) =>
-          p.name.toLowerCase().includes(q) ||
-          p.description.toLowerCase().includes(q) ||
-          p.brand.toLowerCase().includes(q) ||
-          p.category.toLowerCase().includes(q)
-      );
+    // Search query filter (matches name, description, brand, category with hyphen/space tolerance)
+    if (searchQuery && searchQuery.trim()) {
+      const rawQuery = searchQuery.toLowerCase().trim();
+      const queryTokens = rawQuery.split(/[\s,]+/).filter(Boolean);
+
+      result = result.filter((p) => {
+        const brandName = brands.find((b) => b.id === p.brand)?.name || p.brand || '';
+        const categoryName = categories.find((c) => c.id === p.category)?.name || p.category || '';
+        
+        const combined = `${p.name} ${p.description || ''} ${p.brand || ''} ${brandName} ${p.category || ''} ${categoryName}`.toLowerCase();
+        const normalizedCombined = combined.replace(/[-_]/g, ' ');
+
+        return queryTokens.every((token) => {
+          const cleanToken = token.replace(/[-_]/g, ' ');
+          return combined.includes(token) || normalizedCombined.includes(cleanToken);
+        });
+      });
     }
 
-    // Category filter (OR logic among selected categories)
+    // Category filter (OR logic among selected categories with resilient slug & name matching)
     if (selectedCategories.length > 0) {
-      result = result.filter((p) => selectedCategories.includes(p.category));
+      const normalizedSelected = selectedCategories.map((c) =>
+        c.toLowerCase().replace(/[-_]/g, ' ').trim()
+      );
+      result = result.filter((p) => {
+        if (!p.category) return false;
+        const pCatNormalized = p.category.toLowerCase().replace(/[-_]/g, ' ').trim();
+        return (
+          selectedCategories.includes(p.category) ||
+          normalizedSelected.includes(pCatNormalized) ||
+          selectedCategories.some((sc) => sc.toLowerCase() === p.category.toLowerCase())
+        );
+      });
     }
 
     // Brand filter (OR logic among selected brands)

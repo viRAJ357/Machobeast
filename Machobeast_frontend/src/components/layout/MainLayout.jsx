@@ -6,7 +6,7 @@ import { CategoryNav } from './CategoryNav';
 import { Footer } from './Footer';
 import { MobileBottomNav } from './MobileBottomNav';
 import { FloatingCartDropZone } from '../cart/FloatingCartDropZone';
-import { fetchProductsThunk } from '../../redux/slices/productSlice';
+import { fetchProductsThunk, fetchCategoriesThunk } from '../../redux/slices/productSlice';
 import { fetchUserCart } from '../../redux/slices/cartSlice';
 
 export const MainLayout = () => {
@@ -15,6 +15,7 @@ export const MainLayout = () => {
 
   useEffect(() => {
     dispatch(fetchProductsThunk());
+    dispatch(fetchCategoriesThunk());
     if (isAuthenticated) {
       dispatch(fetchUserCart());
     }
